@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>웹뷰 디버그 테스트</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    #log {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: auto;
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <h1>웹뷰 디버그 테스트</h1>
+  
+  <div>
+    <button id="testButton">메시지 전송 테스트</button>
+    <button id="logDomButton">DOM 상태 로깅</button>
+    <button id="clearLogButton">로그 지우기</button>
+  </div>
+  
+  <div id="log"></div>
+  
+  <script>
+    // VS Code API 가져오기
+    const vscode = acquireVsCodeApi();
+    const logElement = document.getElementById('log');
+    
+    // 로그 함수
+    function log(message) {
+      const timestamp = new Date().toISOString();
+      const entry = document.createElement('div');
+      entry.textContent = `[${timestamp}] ${message}`;
+      logElement.appendChild(entry);
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+    
+    // 이벤트 리스너 추가
+    document.getElementById('testButton').addEventListener('click', () => {
+      log('테스트 버튼 클릭됨');
+      try {
+        vscode.postMessage({ 
+          type: 'debug', 
+          action: 'test',
+          message: 'This is a test message from webview'
+        });
+        log('메시지 전송 성공');
+      } catch (error) {
+        log(`메시지 전송 오류: ${error.toString()}`);
+      }
+    });
+    
+    document.getElementById('logDomButton').addEventListener('click', () => {
+      log('DOM 상태 로깅');
+      log(`윈도우 상태: ${window ? '존재' : '없음'}`);
+      log(`document 상태: ${document ? '존재' : '없음'}`);
+      log(`vscode API 상태: ${vscode ? '존재' : '없음'}`);
+    });
+    
+    document.getElementById('clearLogButton').addEventListener('click', () => {
+      logElement.innerHTML = '';
+      log('로그가 지워졌습니다.');
+    });
+    
+    // 초기 로그
+    log('웹뷰 스크립트 로드됨');
+    log(`vscode API 상태: ${vscode ? '존재함' : '없음'}`);
+    
+    // 메시지 수신 핸들러
+    window.addEventListener('message', event => {
+      const message = event.data;
+      log(`메시지 수신: ${JSON.stringify(message)}`);
+    });
+  </script>
+</body>
+</html>

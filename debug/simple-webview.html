@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python Runner Chat</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .title {
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #106ebe;
+    }
+    .messages {
+      height: 300px;
+      overflow-y: auto;
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .input-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    textarea {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      resize: vertical;
+      min-height: 80px;
+    }
+    #btnContainer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    #status {
+      margin-right: auto;
+      font-style: italic;
+      color: #666;
+    }
+    .debug-panel {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f5f5f5;
+    }
+    .debug-panel h3 {
+      margin-top: 0;
+    }
+    .debug-log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: monospace;
+      background-color: #fff;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .run-button {
+      background-color: #107c10;
+    }
+    .run-button:hover {
+      background-color: #0e6e0e;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Python Runner Chat</div>
+    <div class="controls">
+      <button id="btnHome" title="Home">🏠</button>
+      <button id="btnHistory" title="History">📜</button>
+      <button id="btnVariables" title="Variables">📊</button>
+      <button id="btnSettings" title="Settings">⚙️</button>
+      <button id="btnClear" title="Clear">🗑️</button>
+    </div>
+  </div>
+  
+  <div class="messages" id="messages"></div>
+  
+  <div class="input-container">
+    <textarea id="txtInput" placeholder="Type your Python code or questions here..."></textarea>
+    <div id="btnContainer">
+      <div id="status"></div>
+      <button id="btnRun" class="run-button">▶ Run Code</button>
+      <button id="btnSend">Send</button>
+    </div>
+  </div>
+  
+  <div class="debug-panel">
+    <h3>Debug Panel</h3>
+    <button id="btnTestApi">Test VS Code API</button>
+    <button id="btnLogDom">Log DOM Elements</button>
+    <button id="btnClearLog">Clear Log</button>
+    <div class="debug-log" id="debugLog"></div>
+  </div>
+
+  <script>
+    // Debug logging function
+    function log(message) {
+      const logEl = document.getElementById('debugLog');
+      const entry = document.createElement('div');
+      entry.textContent = `[${new Date().toISOString()}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    
+    // Initialize VS Code API
+    let vscode;
+    try {
+      vscode = acquireVsCodeApi();
+      log('VS Code API initialized successfully');
+    } catch (error) {
+      log('Failed to initialize VS Code API: ' + error.message);
+    }
+    
+    // Function to send messages to VS Code
+    function sendMessage(type, data = {}) {
+      try {
+        if (!vscode) {
+          log('ERROR: VS Code API not available');
+          return false;
+        }
+        
+        const message = { type, ...data };
+        log(`Sending message to VS Code: ${type}`);
+        vscode.postMessage(message);
+        log('Message sent successfully');
+        return true;
+      } catch (error) {
+        log(`ERROR sending message: ${error.message}`);
+        return false;
+      }
+    }
+    
+    // Add message to chat
+    function addMessage(text, isUser = false) {
+      const messagesEl = document.getElementById('messages');
+      const messageEl = document.createElement('div');
+      messageEl.style.padding = '8px 12px';
+      messageEl.style.margin = '8px 0';
+      messageEl.style.borderRadius = '4px';
+      messageEl.style.maxWidth = '80%';
+      
+      if (isUser) {
+        messageEl.style.backgroundColor = '#0078d4';
+        messageEl.style.color = 'white';
+        messageEl.style.marginLeft = 'auto';
+      } else {
+        messageEl.style.backgroundColor = '#f0f0f0';
+      }
+      
+      messageEl.textContent = text;
+      messagesEl.appendChild(messageEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    
+    // Log DOM elements
+    function logDomElements() {
+      const elements = [
+        'btnHome', 'btnHistory', 'btnVariables', 'btnSettings', 
+        'btnClear', 'btnRun', 'btnSend', 'txtInput'
+      ];
+      
+      elements.forEach(id => {
+        const el = document.getElementById(id);
+        log(`Element ${id}: ${el ? 'Found' : 'NOT FOUND'}`);
+      });
+    }
+    
+    // Set up event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      log('DOM loaded, setting up event listeners');
+      
+      // Test VS Code API button
+      document.getElementById('btnTestApi').addEventListener('click', () => {
+        log('Test API button clicked');
+        sendMessage('debug', { 
+          action: 'test_api',
+          message: 'Testing API connection',
+          timestamp: new Date().toISOString()
+        });
+      });
+      
+      // Log DOM elements button
+      document.getElementById('btnLogDom').addEventListener('click', () => {
+        log('Log DOM button clicked');
+        logDomElements();
+      });
+      
+      // Clear log button
+      document.getElementById('btnClearLog').addEventListener('click', () => {
+        document.getElementById('debugLog').innerHTML = '';
+        log('Debug log cleared');
+      });
+      
+      // Home button
+      document.getElementById('btnHome').addEventListener('click', () => {
+        log('Home button clicked');
+        sendMessage('command', { command: 'toggleView' });
+      });
+      
+      // History button
+      document.getElementById('btnHistory').addEventListener('click', () => {
+        log('History button clicked');
+        sendMessage('showHistory');
+      });
+      
+      // Variables button
+      document.getElementById('btnVariables').addEventListener('click', () => {
+        log('Variables button clicked');
+        sendMessage('exploreVariables');
+      });
+      
+      // Settings button
+      document.getElementById('btnSettings').addEventListener('click', () => {
+        log('Settings button clicked');
+        sendMessage('openSettings');
+      });
+      
+      // Clear button
+      document.getElementById('btnClear').addEventListener('click', () => {
+        log('Clear button clicked');
+        document.getElementById('messages').innerHTML = '';
+        addMessage('Chat cleared. Enter a new message or code to continue.');
+      });
+      
+      // Run code button
+      document.getElementById('btnRun').addEventListener('click', () => {
+        const code = document.getElementById('txtInput').value.trim();
+        if (!code) return;
+        
+        log('Run button clicked with code');
+        addMessage(code, true);
+        document.getElementById('status').textContent = 'Running code...';
+        sendMessage('executeCode', { code });
+        document.getElementById('txtInput').value = '';
+      });
+      
+      // Send button
+      document.getElementById('btnSend').addEventListener('click', () => {
+        const text = document.getElementById('txtInput').value.trim();
+        if (!text) return;
+        
+        log('Send button clicked with text');
+        addMessage(text, true);
+        document.getElementById('status').textContent = 'Sending...';
+        sendMessage('userMessage', { text });
+        document.getElementById('txtInput').value = '';
+      });
+      
+      // Receive messages from VS Code
+      window.addEventListener('message', event => {
+        const message = event.data;
+        log(`Received message from VS Code: ${message.type}`);
+        
+        if (message.type === 'botMessage') {
+          addMessage(message.text);
+          document.getElementById('status').textContent = '';
+        } else if (message.type === 'error') {
+          addMessage(`Error: ${message.text}`);
+          document.getElementById('status').textContent = '';
+        } else if (message.type === 'statusUpdate') {
+          document.getElementById('status').textContent = message.status === 'loading' ? 'Processing...' : '';
+        }
+      });
+      
+      // Welcome message
+      addMessage('Welcome to Python Runner Chat! Enter your code or questions here.');
+      log('Initialization complete');
+    });
+  </script>
+</body>
+</html>
