@@ -25,6 +25,10 @@
         "title": "🗨️ Open Python Runner Chat"
       },
       {
+        "command": "extension.openAgentChat",
+        "title": "🤖 Open Agent AI with MCP"
+      },
+      {
         "command": "pythonRunnerChat.newFile",
         "title": "📄 New Python File"
       },
@@ -59,20 +63,69 @@
       {
         "command": "pythonRunnerChat.analyzeError",
         "title": "🔍 Analyze Python Error"
+      },
+      {
+        "command": "pythonRunnerChat.configureMCP",
+        "title": "⚙️ Configure MCP Servers"
+      },
+      {
+        "command": "pythonRunnerChat.listMCPServers",
+        "title": "📋 List MCP Servers"
+      },
+      {
+        "command": "pythonRunnerChat.refreshMCPServers",
+        "title": "🔄 Refresh MCP Servers"
+      },
+      {
+        "command": "pythonRunnerChat.testMcpConnection",
+        "title": "🔍 Test MCP Connection"
+      },
+      {
+        "command": "pythonRunnerChat.testAgentAI",
+        "title": "🧪 Test Agent AI"
+      },
+      {
+        "command": "pythonRunnerChat.configureLMStudio",
+        "title": "⚙️ Configure LM Studio"
+      },
+      {
+        "command": "pythonRunnerChat.testLMStudio",
+        "title": "🔗 Test LM Studio Connection"
       }
     ],
     "configuration": {
       "title": "Python Runner Chat",
       "properties": {
-        "pythonRunnerChat.apiUrl": {
+        "pythonRunnerChat.llmBaseUrl": {
           "type": "string",
-          "default": "http://localhost:1234/v1",
-          "description": "LLM API 엔드포인트 URL"
+          "default": "http://127.0.0.1:1234",
+          "description": "LM Studio 서버 URL"
         },
-        "pythonRunnerChat.model": {
+        "pythonRunnerChat.llmModel": {
           "type": "string",
-          "default": "Qwen2.5-7B-Instruct-Q4_K_M",
-          "description": "LLM 모델명 (LM Studio에서 사용 가능한 모델)"
+          "default": "local-model",
+          "description": "LM Studio에서 로드된 모델명"
+        },
+        "pythonRunnerChat.llmTemperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "description": "LLM 생성 온도 (0.0-2.0)"
+        },
+        "pythonRunnerChat.llmMaxTokens": {
+          "type": "number",
+          "default": 2048,
+          "minimum": 1,
+          "maximum": 8192,
+          "description": "최대 토큰 수"
+        },
+        "pythonRunnerChat.llmTimeout": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 5000,
+          "maximum": 120000,
+          "description": "LLM API 타임아웃 (밀리초)"
         },
         "pythonRunnerChat.systemPrompt": {
           "type": "string",
@@ -123,6 +176,62 @@
           "type": "boolean",
           "default": true,
           "description": "코드 실행 결과 인라인 표시"
+        },
+        "pythonRunnerChat.mcpServers": {
+          "type": "array",
+          "default": [],
+          "description": "MCP 서버 목록",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "서버 이름"
+              },
+              "url": {
+                "type": "string",
+                "description": "서버 URL"
+              },
+              "protocol": {
+                "type": "string",
+                "enum": ["http", "ws", "stdio"],
+                "default": "http",
+                "description": "통신 프로토콜"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "서버 활성화 여부"
+              },
+              "timeout": {
+                "type": "number",
+                "default": 30000,
+                "description": "연결 타임아웃 (ms)"
+              },
+              "retryCount": {
+                "type": "number",
+                "default": 3,
+                "description": "재시도 횟수"
+              }
+            },
+            "required": ["name", "url"]
+          }
+        },
+        "pythonRunnerChat.mcpEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "MCP 기능 활성화"
+        },
+        "pythonRunnerChat.mcpAutoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "시작 시 MCP 서버 자동 연결"
+        },
+        "pythonRunnerChat.mcpLogLevel": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info",
+          "description": "MCP 로그 레벨"
         }
       }
     }
@@ -133,7 +242,9 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "start-mcp-server": "node test-mcp-server.js",
+    "test-mcp": "node -e \"require('./out/examples.js').runMcpExamples()\""
   },
   "devDependencies": {
     "@types/glob": "^7.1.3",
@@ -141,6 +252,8 @@
     "@types/node": "^14.17.0",
     "@types/node-fetch": "^2.6.12",
     "@types/vscode": "^1.60.0",
+    "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.5.12",
     "@typescript-eslint/eslint-plugin": "^4.26.0",
     "@typescript-eslint/parser": "^4.26.0",
     "eslint": "^7.27.0",
@@ -151,6 +264,11 @@
   },
   "dependencies": {
     "node-fetch": "^2.6.7",
-    "openai": "^4.0.0"
+    "openai": "^4.0.0",
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "ws": "^8.18.0",
+    "uuid": "^9.0.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
   }
 }
